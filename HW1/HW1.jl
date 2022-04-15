@@ -1,4 +1,4 @@
-using GLPK,JuMP, Dualization
+using GLPK,JuMP, Gurobi
 using Random
 using Distributions
 using MathOptInterface
@@ -7,11 +7,11 @@ const MOI = MathOptInterface
 function getVariables(n,m)
     # n = 2 #number of supliers
     # m = 3 #number of customers
-    c = rand(Uniform(0,1), n*m)
-    f = rand(Uniform(0,1), n*m)
+    c = rand(Uniform(1,5), n*m)
+    f = rand(Uniform(10,50), n*m)
 
-    s = rand(Uniform(0,1),n)
-    d = rand(Uniform(0,1),m)
+    s = rand(Uniform(50,1000),n)
+    d = rand(Uniform(1,10),m)
     sum_s = sum(s)
     sum_d = sum(d)
 
@@ -25,8 +25,8 @@ function getVariables(n,m)
 end
 
 function Q4(n,m,c,f,s,d,M,display)
-    println("=============== GLPK Solver ========================")
-    model = Model(GLPK.Optimizer)
+    println("=============== Gurbi Solver ========================")
+    model = Model(optimizer_with_attributes(Gurobi.Optimizer, "OutputFlag" => 0))
     @variable(model, x[1:(n*m)] >= 0)
     @variable(model, y[1:n*m], Bin)
 
@@ -54,12 +54,17 @@ end
 function Q5(n,m,c,f,s,d,M,tol,display)
     #Benders Decomposition
     println("=============== Benders Decomposition ========================")
+    gurobi_env = Gurobi.Env()
     #Master Problem Description
-    master = Model(GLPK.Optimizer)
-
+    master = Model(optimizer_with_attributes( () -> Gurobi.Optimizer(gurobi_env),"OutputFlag"=>0))
+    set_optimizer_attribute(master,"presolve",2)
+    set_optimizer_attribute(master,"MIPFocus",3)
     @variable(master, y[1:n*m], Bin)
     @variable(master,x>=0)
     @objective(master, Min, x + sum(f .*y))
+
+
+
 
     k = 1 #iteration
 
@@ -69,8 +74,6 @@ function Q5(n,m,c,f,s,d,M,tol,display)
     Feasability_Cut_Counter= 0
 
     while(true)
-        # println("===============iter k = ",k,"========================")
-        # println("Lb = ",Lb,"    Ub = ",Ub)
 
         optimize!(master)
         t_status = termination_status(master)# == MOI.Success (if the call was succesful or stopped during)
@@ -91,19 +94,25 @@ function Q5(n,m,c,f,s,d,M,tol,display)
             Lb = objective_value(master)
             y0 = value.(y)
             x0 = value.(x)
+            
         #Cases where the primal is executed and terminated
         else p_status == MOI.INFEASIBLE_POINT
             println("--> stop: problem is infeasible")
             break
         end
 
-        #Benders subproblem (Dual, LP)
-        subProblem = Model(GLPK.Optimizer)
+        if mod(k,5)==0
 
+            println("===============iter k = ",k,"========================")
+            println("Lb = ",Lb,"    Ub = ",Ub)
+        end
+
+        #with Gurobi
+        subProblem = Model(optimizer_with_attributes( () -> Gurobi.Optimizer(gurobi_env),"OutputFlag"=>0))
+        set_optimizer_attribute(subProblem,"presolve",0)
         @variable(subProblem, v[1:n])
         @variable(subProblem, u[1:m])
         @variable(subProblem, w[1:(n*m)]>=0)
-
         @objective(subProblem, Max, sum(v .*s) + sum(u .*d) - sum(M .* w .* y0))
         @constraint(subProblem,c1, [ (v[div(k,m,RoundUp)] + u[if mod(k,m)!= 0 mod(k,m) else m end] - w[k]) for k in 1:n*m] .<= c)
 
@@ -111,7 +120,7 @@ function Q5(n,m,c,f,s,d,M,tol,display)
 
         t_status_sub = termination_status(subProblem)# == MOI.Success
         p_status_sub = primal_status(subProblem) # == MOI.FEASIBLE_POINT
-        # println("--Subproblem--")
+        # println("--Subproblem (Gurobi)--")
         # println(t_status_sub)
         # println(p_status_sub)
 
@@ -147,9 +156,14 @@ function Q5(n,m,c,f,s,d,M,tol,display)
             break
         end  
 
-        if abs(Lb-Ub)<1e-2
+        if abs(Lb-Ub)<1e-2 || k>10000
             println("other breaking condition")
-            println("f*=",objective_value(master))
+            println("finish in ",k," iterations")
+            println("y0=",y0)
+            println("x0=",x0)
+            println("Lb=",Lb," f*= ",objective_value(master)," Ub= ",Ub)
+            println("Optimality_Cut_Counter =",Optimality_Cut_Counter)
+            println("Feasability_Cut_Counter=",Feasability_Cut_Counter)
             break
         end
 
@@ -159,7 +173,7 @@ function Q5(n,m,c,f,s,d,M,tol,display)
 
     return
 end
-n,m,c,f,s,d,M = getVariables(2,3)
+n,m,c,f,s,d,M = getVariables(5,10)
 
+#Q4(n,m,c,f,s,d,M,true)
 Q5(n,m,c,f,s,d,M,1e-2,true)
-Q4(n,m,c,f,s,d,M,true)
