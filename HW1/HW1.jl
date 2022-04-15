@@ -25,6 +25,7 @@ function getVariables(n,m)
 end
 
 function Q4(n,m,c,f,s,d,M,display)
+    println("=============== GLPK Solver ========================")
     model = Model(GLPK.Optimizer)
     @variable(model, x[1:(n*m)] >= 0)
     @variable(model, y[1:n*m], Bin)
@@ -52,43 +53,51 @@ function Q4(n,m,c,f,s,d,M,display)
 end
 function Q5(n,m,c,f,s,d,M,tol,display)
     #Benders Decomposition
-
+    println("=============== Benders Decomposition ========================")
     #Master Problem Description
     master = Model(GLPK.Optimizer)
 
-    @variable(master, f_sub >= 0)
     @variable(master, y[1:n*m], Bin)
-    @variable(master,x0>=0)
-    @objective(master, Min, f_sub + sum(f .*y))
+    @variable(master,x>=0)
+    @objective(master, Min, x + sum(f .*y))
 
     k = 1 #iteration
 
     Ub = Inf
     Lb = - Inf
+    Optimality_Cut_Counter = 0
+    Feasability_Cut_Counter= 0
 
-    while(abs(Ub-Lb)>= tol && k<3)
+    while(true)
+        # println("===============iter k = ",k,"========================")
+        # println("Lb = ",Lb,"    Ub = ",Ub)
+
         optimize!(master)
         t_status = termination_status(master)# == MOI.Success (if the call was succesful or stopped during)
         p_status = primal_status(master) # == MOI.FEASIBLE_POINT (result if not interupted)
 
-        println(t_status)
-        println(p_status)
+        # println("--Master--")
+        # println(t_status)
+        # println(p_status)
         #Case where primal is executed and not terminated (add rays and vertices (unbounded problem-> Benders Decomposition))
         if t_status == MOI.INFEASIBLE_OR_UNBOUNDED
+            # println("--> unbounded")
+            y0 = value.(y)
+            x0 = value.(x)
             Lb = - Inf
-        end
-        if p_status == MOI.FEASIBLE_POINT
+
+        elseif p_status == MOI.FEASIBLE_POINT
+            # println("--> feasible")
             Lb = objective_value(master)
             y0 = value.(y)
-            x0 = value.(x0)
-        end
+            x0 = value.(x)
         #Cases where the primal is executed and terminated
-        if p_status == MOI.INFEASIBLE_POINT
-            println("The problem is infeasible")
+        else p_status == MOI.INFEASIBLE_POINT
+            println("--> stop: problem is infeasible")
             break
         end
 
-        #Benders subproblem (Primal, linear programming)
+        #Benders subproblem (Dual, LP)
         subProblem = Model(GLPK.Optimizer)
 
         @variable(subProblem, v[1:n])
@@ -101,42 +110,56 @@ function Q5(n,m,c,f,s,d,M,tol,display)
         optimize!(subProblem)  
 
         t_status_sub = termination_status(subProblem)# == MOI.Success
-        p_status_sub = primal_status(subProblem)# == MOI.FEASIBLE_POINT
+        p_status_sub = primal_status(subProblem) # == MOI.FEASIBLE_POINT
+        # println("--Subproblem--")
+        # println(t_status_sub)
+        # println(p_status_sub)
 
-        println(t_status_sub)
-        println(primal_status(subProblem))
-
-        println(objective_value(subProblem))
-        println(x0)
         # if unbounded, add the feasibility cut (There is an  extreme ray, adding the corresponding constraint)
         if t_status_sub == MOI.DUAL_INFEASIBLE && p_status_sub == MOI.INFEASIBILITY_CERTIFICATE
-            println("extreme rays")
+            # println("-->extreme rays")
             ve = value.(v)
             ue = value.(u)
             we = value.(w)
             @constraint(master, sum(ve .*s) + sum(ue .*d) - sum(M .* we .* y ) <= 0) #TODO
+            Feasability_Cut_Counter += 1
         end
         #if bounded and add optimality cut (add a vertex)
 
         if p_status_sub == MOI.FEASIBLE_POINT && x0 < objective_value(subProblem) 
-            println("vertice")
+            #  println("-->vertice")
+            #  println(x0," <" ,  objective_value(subProblem) )
             vv = value.(v)
             uv = value.(u)
             wv = value.(w)
-            @constraint(master, sum(vv .*s ) + sum(uv .*d ) - sum(M .* wv .* y)<= x0 )#TODO
+            @constraint(master, sum(vv .*s ) + sum(uv .*d ) - sum(M .* wv .* y)<= x )#TODO
+            Ub = sum(f.*y0)+ objective_value(subProblem)
+            Optimality_Cut_Counter +=1
         end 
         # we are done
         if p_status_sub == MOI.FEASIBLE_POINT &&  x0 >= objective_value(subProblem) 
-            println("finish")
+            println("finish in ",k," iterations")
+            println("y0=",y0)
+            println("x0=",x0)
+            println("Lb=",Lb," f*= ",objective_value(master)," Ub= ",Ub)
+            println("Optimality_Cut_Counter =",Optimality_Cut_Counter)
+            println("Feasability_Cut_Counter=",Feasability_Cut_Counter)
             break
         end  
 
+        if abs(Lb-Ub)<1e-2
+            println("other breaking condition")
+            println("f*=",objective_value(master))
+            break
+        end
+
         k += 1
-        println("iter k = ",k)
+        
     end
 
     return
 end
 n,m,c,f,s,d,M = getVariables(2,3)
-#Q4(n,m,c,f,s,d,M,true)
+
 Q5(n,m,c,f,s,d,M,1e-2,true)
+Q4(n,m,c,f,s,d,M,true)
