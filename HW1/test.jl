@@ -1,5 +1,5 @@
 #ligne 20
-import Pkg; Pkg.add("Gurobi")
+import Pkg; Pkg.add("Plots")
 using LinearAlgebra
 function f(k,m)
 
