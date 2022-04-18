@@ -116,6 +116,10 @@ function Q5(n,m,c,f,s,d,M;tol=1e-2,max_iter=1e3,display=false)
               Quantity produced by each supplier
         M   : Array of size n*m 
               Upper bound of the quantity x between suppliers and customers
+        tol : Real number 
+              stoping conditions if the distance between the upper and lower bound is smaller than the parameter tol
+        max_iter: Integer
+                  stopping condition if the number of iteration performed exceed the parameter max_iter
         display : Boolean
                   display iterations, bounds, and final result.
         returns:
@@ -177,7 +181,7 @@ function Q5(n,m,c,f,s,d,M;tol=1e-2,max_iter=1e3,display=false)
                 println("===============iter k = ",k,"========================")
                 println("Lb = ",Lb,"    Ub = ",Ub)
             end
-            if mod(k,10)==0
+            if mod(k,20)==0
 
                 println("===============iter k = ",k,"========================")
                 println("Lb = ",Lb,"    Ub = ",Ub)
@@ -248,7 +252,6 @@ function Q5(n,m,c,f,s,d,M;tol=1e-2,max_iter=1e3,display=false)
             Optimality_Cut_Counter +=1 
         end
 
-
         k += 1
         
     end
@@ -259,9 +262,9 @@ end
 
 function compareTime(n,m)
 
-    #n,m,c,f,s,d,M = getVariables(n,m)
+    n,m,c,f,s,d,M = getVariables(n,m)
 
-    #time1 = @elapsed obj1 = Q4(n,m,c,f,s,d,M,true);
+    time1 = @elapsed obj1 = Q4(n,m,c,f,s,d,M,display=true);
 
     n,m,c,f,s,d,M = getVariables(n,m)
 
@@ -270,11 +273,11 @@ function compareTime(n,m)
     time4 = @elapsed obj2 = Q5(n,m,c,f,s,d,M,display=true);
 
 
-    return time3, time4, abs(obj1 -obj2)
+    return time3, time4, abs(time3 -time4)
 end
 
 
-time3, time4, diff = compareTime(5,10);
+time3, time4, diff = compareTime(10,15);
 println("Direct Solver = ",time3)
 println("Benders Decomposition = ",time4)
 println("diff = ",diff)
