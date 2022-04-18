@@ -1,4 +1,4 @@
-using GLPK,JuMP, Gurobi
+using GLPK,JuMP, Dualization
 using Random
 using Distributions
 using MathOptInterface
@@ -26,8 +26,8 @@ function getVariables(n,m)
 end
 
 function Q4(n,m,c,f,s,d,M,display)
-    println("=============== Gurobi Solver ========================")
-    model = Model(optimizer_with_attributes(Gurobi.Optimizer, "OutputFlag" => 0))
+    println("=============== GLPK Solver ========================")
+    model = Model(GLPK.Optimizer)
     @variable(model, x[1:(n*m)] >= 0)
     @variable(model, y[1:n*m], Bin)
 
@@ -57,11 +57,9 @@ end
 function Q5(n,m,c,f,s,d,M,tol,display)
     #Benders Decomposition
     println("=============== Benders Decomposition ========================")
-    gurobi_env = Gurobi.Env()
     #Master Problem Description
-    master = Model(optimizer_with_attributes( () -> Gurobi.Optimizer(gurobi_env),"OutputFlag"=>0))
-    set_optimizer_attribute(master,"presolve",2)
-    set_optimizer_attribute(master,"MIPFocus",1)
+    master = Model(GLPK.Optimizer)
+
     @variable(master, y[1:n*m], Bin)
     @variable(master,x>=0)
     @objective(master, Min, x + sum(f .*y))
@@ -115,9 +113,8 @@ function Q5(n,m,c,f,s,d,M,tol,display)
         end
         
 
-        #with Gurobi
-        subProblem = Model(optimizer_with_attributes( () -> Gurobi.Optimizer(gurobi_env),"OutputFlag"=>0))
-        set_optimizer_attribute(subProblem,"presolve",0);
+        #with GLPK
+        subProblem = Model(GLPK.Optimizer)
         @variable(subProblem, v[1:n])
         @variable(subProblem, u[1:m])
         @variable(subProblem, w[1:(n*m)]>=0)
@@ -212,7 +209,7 @@ function compareTime(n,m)
 end
 
 
-time1, time3, time4, diff_f, diff_x,diff_y = compareTime(20,30);
+time1, time3, time4, diff_f, diff_x,diff_y = compareTime(5,10);
 println("time1 = ",time1)
 println("time3 = ",time3)
 println("time4 = ",time4)
