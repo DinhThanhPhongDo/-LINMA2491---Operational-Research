@@ -6,8 +6,31 @@ using LinearAlgebra
 const MOI = MathOptInterface
 
 function getVariables(n,m)
-    # n = 2 #number of supliers
-    # m = 3 #number of customers
+    """
+    return an random instance with n suppliers and m customers.
+        parameters
+        ----------
+        n   : Integer
+              Number of suppliers
+        m   : Integer
+              Number of customers
+        returns
+        -------
+        n   : Integer
+              Number of suppliers
+        m   : Integer
+              Number of customers
+        c   : Array of size n*m
+              Cost of transporting a quantity x between suppliers and customers
+        f   : Array of size n*M
+              Cost for opening a routes between suppliers and customers
+        s   : Array of size n
+              Quantity asked by each customer
+        d   : Array of size m
+              Quantity produced by each supplier
+        M   : Array of size n*m 
+              Upper bound of the quantity x between suppliers and customers
+    """
     c = rand(Uniform(1,5), n*m)
     f = rand(Uniform(10,50), n*m)
 
@@ -15,18 +38,41 @@ function getVariables(n,m)
     d = rand(Uniform(1,10),m)
     sum_s = sum(s)
     sum_d = sum(d)
-
     s = s* sum_d
     d = d* sum_s
+
     M = [min(s[div(k, m, RoundUp)],d[mod(k-1,m)+1]) for k in 1:n*m]
-    # println(s)
-    # println(d)
-    # println(M)
+
     return n,m,c,f,s,d,M
 end
 
-function Q4(n,m,c,f,s,d,M,display)
-    println("=============== Gurobi Solver ========================")
+function Q4(n,m,c,f,s,d,M;display=false)
+    """
+        Direct Solver for an instance of the Fixed Charge Trasportation Problem
+        
+        parameters:
+        -----------
+        n   : Integer
+              Number of suppliers
+        m   : Integer
+              Number of customers
+        c   : Array of size n*m
+              Cost of transporting a quantity x between suppliers and customers
+        f   : Array of size n*M
+              Cost for opening a routes between suppliers and customers
+        s   : Array of size n
+              Quantity asked by each customer
+        d   : Array of size m
+              Quantity produced by each supplier
+        M   : Array of size n*m 
+              Upper bound of the quantity x between suppliers and customers
+        display : Boolean
+                  display or not the results (termination status, primal status, dual status and objective value)
+        returns:
+        --------
+        objective_value(model) : Return the objective value of this instance of the Fixed Charge Trasportation Problem
+    """
+    
     model = Model(optimizer_with_attributes(Gurobi.Optimizer, "OutputFlag" => 0))
     @variable(model, x[1:(n*m)] >= 0)
     @variable(model, y[1:n*m], Bin)
@@ -39,26 +85,53 @@ function Q4(n,m,c,f,s,d,M,display)
     @constraint(model, c3, x .<= M.*y)
 
     optimize!(model)
+<<<<<<< HEAD
     #println(Lb)
     x_opt = value.(x)
     y_opt = value.(y)
+=======
+
+>>>>>>> c8abda18b6509a97c2d07c1494a345d4e9121fbb
     if display==true
         #print(model)
+        println("======================== Direct Solver ========================")
         @show termination_status(model)
         @show primal_status(model)
         @show dual_status(model)
         @show objective_value(model)
-        #@show value.(x) #  @show value.(x[1:n*m])
-        #@show value.(y) #  @show value.(y[1:n*m])
     end
     
     return objective_value(model), x_opt, y_opt
 end
-function Q5(n,m,c,f,s,d,M,tol,display)
-    #Benders Decomposition
-    println("=============== Benders Decomposition ========================")
+function Q5(n,m,c,f,s,d,M;tol=1e-2,max_iter=1e3,display=false)
+    """
+        Benders Decomposition for an instance of the Fixed Charge Trasportation Problem
+        
+        parameters:
+        -----------
+        n   : Integer
+              Number of suppliers
+        m   : Integer
+              Number of customers
+        c   : Array of size n*m
+              Cost of transporting a quantity x between suppliers and customers
+        f   : Array of size n*M
+              Cost for opening a routes between suppliers and customers
+        s   : Array of size n
+              Quantity asked by each customer
+        d   : Array of size m
+              Quantity produced by each supplier
+        M   : Array of size n*m 
+              Upper bound of the quantity x between suppliers and customers
+        display : Boolean
+                  display iterations, bounds, and final result.
+        returns:
+        --------
+        objective_value(model) : Return the objective value of this instance of the Fixed Charge Trasportation Problem
+    """
     gurobi_env = Gurobi.Env()
-    #Master Problem Description
+
+    #Master Problem
     master = Model(optimizer_with_attributes( () -> Gurobi.Optimizer(gurobi_env),"OutputFlag"=>0))
     set_optimizer_attribute(master,"presolve",2)
     set_optimizer_attribute(master,"MIPFocus",1)
@@ -69,7 +142,7 @@ function Q5(n,m,c,f,s,d,M,tol,display)
 
 
 
-    k = 1 #iteration
+    k = 1 #iterations
 
     Ub = Inf
     Lb = - Inf
@@ -82,40 +155,53 @@ function Q5(n,m,c,f,s,d,M,tol,display)
     while(keepgoing)
 
         optimize!(master)
-        t_status = termination_status(master)# == MOI.Success (if the call was succesful or stopped during)
-        p_status = primal_status(master) # == MOI.FEASIBLE_POINT (result if not interupted)
+        t_status = termination_status(master)
+        p_status = primal_status(master) 
 
-        # println("--Master--")
-        # println(t_status)
-        # println(p_status)
-        #Case where primal is executed and not terminated (add rays and vertices (unbounded problem-> Benders Decomposition))
+        #If master is executed and not terminated
         if t_status == MOI.INFEASIBLE_OR_UNBOUNDED
+<<<<<<< HEAD
             # println("--> unbounded")
             y_opt = value.(y)
             theta = value.(x)
-            Lb = - Inf
+=======
 
+            y0 = value.(y)
+            x0 = value.(x)
+>>>>>>> c8abda18b6509a97c2d07c1494a345d4e9121fbb
+            Lb = - Inf
+        #If master is executed and an optimal solution is found
         elseif p_status == MOI.FEASIBLE_POINT
-            # println("--> feasible")
+
             Lb = objective_value(master)
             y_opt = value.(y)
             theta = value.(x)
             
-        #Cases where the primal is executed and terminated
+        ##If master is executed and is infeasible
         else p_status == MOI.INFEASIBLE_POINT
+
+            println("=======================================")
             println("--> stop: problem is infeasible")
             break
         end
 
-        
-        if mod(k,10)==0
+        if display
+            if k == 1
 
-            println("===============iter k = ",k,"========================")
-            println("Lb = ",Lb,"    Ub = ",Ub)
+                println("======================== Benders Decomposition ========================")
+                println("===============iter k = ",k,"========================")
+                println("Lb = ",Lb,"    Ub = ",Ub)
+            end
+            if mod(k,10)==0
+
+                println("===============iter k = ",k,"========================")
+                println("Lb = ",Lb,"    Ub = ",Ub)
+            end
         end
+
         
 
-        #with Gurobi
+        #Subproblem
         subProblem = Model(optimizer_with_attributes( () -> Gurobi.Optimizer(gurobi_env),"OutputFlag"=>0))
         set_optimizer_attribute(subProblem,"presolve",0);
         @variable(subProblem, v[1:n])
@@ -126,13 +212,11 @@ function Q5(n,m,c,f,s,d,M,tol,display)
 
         optimize!(subProblem)  
 
-        t_status_sub = termination_status(subProblem)# == MOI.Success
-        p_status_sub = primal_status(subProblem) # == MOI.FEASIBLE_POINT
-        # println("--Subproblem (Gurobi)--")
-        # println(t_status_sub)
-        # println(p_status_sub)
+        t_status_sub = termination_status(subProblem)
+        p_status_sub = primal_status(subProblem) 
 
 
+<<<<<<< HEAD
         # we are done
         if p_status_sub == MOI.FEASIBLE_POINT &&  theta >= objective_value(subProblem) - 1e-10 
             println("finish in ",k," iterations")
@@ -144,10 +228,22 @@ function Q5(n,m,c,f,s,d,M,tol,display)
             #println("theta=",theta)
             println("Feasability_Cut_Counter=",Feasability_Cut_Counter)
             println("Optimality_Cut_Counter =",Optimality_Cut_Counter)
+=======
+        # stopping conditions
+        if p_status_sub == MOI.FEASIBLE_POINT &&  x0 >= objective_value(subProblem) - 1e-10 
+>>>>>>> c8abda18b6509a97c2d07c1494a345d4e9121fbb
 
-            println("Lb=",Lb," f*= ",objective_value(master)," Ub= ",Ub)
+            if display
+
+                println("=======================================")
+                println("Optimal solution found after ",k," iterations")
+                println("Number of feasability cuts=",Feasability_Cut_Counter)
+                println("Number of optimality cuts =",Optimality_Cut_Counter)
+                println("Lb=",Lb," f*= ",objective_value(master)," Ub= ",Ub)
+            end
             keepgoing = false 
  
+<<<<<<< HEAD
         elseif (abs(Lb-Ub)<tol || k>10000)
             println("other breaking condition")
             println("finish in ",k," iterations")
@@ -160,13 +256,25 @@ function Q5(n,m,c,f,s,d,M,tol,display)
             println("Optimality_Cut_Counter =",Optimality_Cut_Counter)
             println("Feasability_Cut_Counter=",Feasability_Cut_Counter)
             println("Lb=",Lb," f*= ",objective_value(master)," Ub= ",Ub)
+=======
+        elseif (abs(Lb-Ub)<tol || k>max_iter)
+
+            if display
+
+                println("=======================================")
+                println("stopped after",k," iterations because tolerances or numbers of iteration exceed max iteration")
+                println("Optimality_Cut_Counter =",Optimality_Cut_Counter)
+                println("Feasability_Cut_Counter=",Feasability_Cut_Counter)
+                println("Lb=",Lb," f*= ",objective_value(master)," Ub= ",Ub)
+            end
+>>>>>>> c8abda18b6509a97c2d07c1494a345d4e9121fbb
 
             keepgoing = false
         end
 
         # if unbounded, add the feasibility cut (There is an  extreme ray, adding the corresponding constraint)
         if  keepgoing && (t_status_sub == MOI.DUAL_INFEASIBLE && p_status_sub == MOI.INFEASIBILITY_CERTIFICATE)
-            # println("-->extreme rays")
+
             ve = value.(v)
             ue = value.(u)
             we = value.(w)
@@ -174,6 +282,7 @@ function Q5(n,m,c,f,s,d,M,tol,display)
             Feasability_Cut_Counter += 1
         
         #if bounded and add optimality cut (add a vertex)
+<<<<<<< HEAD
 
         elseif keepgoing && (p_status_sub == MOI.FEASIBLE_POINT && theta < objective_value(subProblem)) 
             #  println("-->vertice")
@@ -183,6 +292,15 @@ function Q5(n,m,c,f,s,d,M,tol,display)
             wv = value.(w)
             @constraint(master, sum(vv .*s ) + sum(uv .*d ) - sum(M .* wv .* y)<= x )#TODO
             Ub = sum(f.*y_opt)+ objective_value(subProblem)
+=======
+        elseif keepgoing && (p_status_sub == MOI.FEASIBLE_POINT && x0 < objective_value(subProblem)) 
+
+            vv = value.(v)
+            uv = value.(u)
+            wv = value.(w)
+            @constraint(master, sum(vv .*s ) + sum(uv .*d ) - sum(M .* wv .* y)<= x )
+            Ub = sum(f.*y0)+ objective_value(subProblem)
+>>>>>>> c8abda18b6509a97c2d07c1494a345d4e9121fbb
             Optimality_Cut_Counter +=1 
         end
 
@@ -197,8 +315,9 @@ end
 
 function compareTime(n,m)
 
-    n,m,c,f,s,d,M = getVariables(n,m)
+    #n,m,c,f,s,d,M = getVariables(n,m)
 
+<<<<<<< HEAD
     time1 = @elapsed obj1, x_opt1, y_opt1 = Q4(n,m,c,f,s,d,M,true);
 
     n,m,c,f,s,d,M = getVariables(n,m)
@@ -221,6 +340,25 @@ println("diff_x = ",diff_x)
 println("diff_y = ",diff_y)
 
 
+=======
+    #time1 = @elapsed obj1 = Q4(n,m,c,f,s,d,M,true);
+
+    n,m,c,f,s,d,M = getVariables(n,m)
+
+    time3 = @elapsed obj1 = Q4(n,m,c,f,s,d,M,display=true);
+
+    time4 = @elapsed obj2 = Q5(n,m,c,f,s,d,M,display=true);
+
+
+    return time3, time4, abs(obj1 -obj2)
+end
+
+
+time3, time4, diff = compareTime(5,10);
+println("Direct Solver = ",time3)
+println("Benders Decomposition = ",time4)
+println("diff = ",diff)
+>>>>>>> c8abda18b6509a97c2d07c1494a345d4e9121fbb
 
 
 
