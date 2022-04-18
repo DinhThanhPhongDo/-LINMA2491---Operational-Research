@@ -296,8 +296,8 @@ function compareTime(n,m)
 
     time4 = @elapsed obj2, x_opt2, y_opt2,timeMaster,timeSubProblem = Q5(n,m,c,f,s,d,M,tol=1e-2,display=true);
     x = 1:length(timeMaster)
-    plt1 = scatter(x,timeMaster)
-    plt1 = scatter!(x,timeSubProblem)
+    plt1 = scatter(x,timeMaster, xlabel= "Iterations", ylabel = "time [s]", title = "Runtimes", label = "Master")
+    plt1 = scatter!(x,timeSubProblem, label ="Sub-problem")
 
     savefig(plt1,"plt1.png")
     display(plt1)
