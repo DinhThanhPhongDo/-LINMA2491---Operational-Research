@@ -158,7 +158,7 @@ function Q5(n,m,c,f,s,d,M;tol=1e-2,max_iter=1e3,display=false)
 
         tmast = @elapsed optimize!(master)
         push!(timeMaster, tmast)
-        println(timeMaster)
+        #println(timeMaster)
         t_status = termination_status(master)
         p_status = primal_status(master) 
 
@@ -305,7 +305,7 @@ function compareTime(n,m)
 end
 
 
-time1, time3, time4, diff_f, diff_x,diff_y = compareTime(5,8);
+time1, time3, time4, diff_f, diff_x,diff_y = compareTime(5,10);
 println("time1 = ",time1)
 println("time3 = ",time3)
 println("time4 = ",time4)
