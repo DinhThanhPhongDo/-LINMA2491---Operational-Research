@@ -5,6 +5,11 @@ using LinearAlgebra
 using Plots
 const MOI = MathOptInterface
 
+
+#-----------------------------------------------------------------------------
+# Generate the problem
+#-----------------------------------------------------------------------------
+
 function getVariables(n,m)
     """
     return an random instance with n suppliers and m customers.
@@ -45,6 +50,11 @@ function getVariables(n,m)
 
     return n,m,c,f,s,d,M
 end
+
+
+#-----------------------------------------------------------------------------
+# Direct solver
+#-----------------------------------------------------------------------------
 
 function Q4(n,m,c,f,s,d,M;display=false)
     """
@@ -99,6 +109,11 @@ function Q4(n,m,c,f,s,d,M;display=false)
     
     return objective_value(model), x_opt, y_opt
 end
+
+#------------------------------------------------------------------------------
+# Benders decomposition solver
+#------------------------------------------------------------------------------
+
 function Q5(n,m,c,f,s,d,M;tol=1e-2,max_iter=1e3,display=false)
     """
         Benders Decomposition for an instance of the Fixed Charge Trasportation Problem
@@ -282,6 +297,10 @@ function Q5(n,m,c,f,s,d,M;tol=1e-2,max_iter=1e3,display=false)
     return objective_value(master), x_opt, y_opt, timeMaster,timeSubProblem
 end
 
+#------------------------------------------------------------------------
+# Compare running time
+# And generate a figure with running times of master and sub-problem
+#------------------------------------------------------------------------
 
 function compareTime(n,m)
 
@@ -303,6 +322,13 @@ function compareTime(n,m)
     display(plt1)
     return time1, time3, time4, abs(obj1 -obj2), norm(x_opt2 .- x_opt1), norm(y_opt2 .- y_opt1)
 end
+
+#----------------------------------------------------------------------------
+#----------------------------------------------------------------------------
+#  To generate and compute the solution of a problem with 
+#  n suppliers and m customers, change the parameters in the call of the 
+#  function compareTime(n,m). 
+#----------------------------------------------------------------------------
 
 
 time1, time3, time4, diff_f, diff_x,diff_y = compareTime(5,10);
