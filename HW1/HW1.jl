@@ -2,6 +2,7 @@ using GLPK,JuMP, Gurobi
 using Random
 using Distributions
 using MathOptInterface
+using LinearAlgebra
 const MOI = MathOptInterface
 
 function getVariables(n,m)
@@ -84,6 +85,8 @@ function Q4(n,m,c,f,s,d,M;display=false)
     @constraint(model, c3, x .<= M.*y)
 
     optimize!(model)
+    x_opt = value.(x)
+    y_opt = value.(y)
 
     if display==true
         #print(model)
@@ -94,7 +97,7 @@ function Q4(n,m,c,f,s,d,M;display=false)
         @show objective_value(model)
     end
     
-    return objective_value(model)
+    return objective_value(model), x_opt, y_opt
 end
 function Q5(n,m,c,f,s,d,M;tol=1e-2,max_iter=1e3,display=false)
     """
@@ -147,6 +150,8 @@ function Q5(n,m,c,f,s,d,M;tol=1e-2,max_iter=1e3,display=false)
     Feasability_Cut_Counter= 0
 
     keepgoing = true
+    x_opt = 0
+    y_opt = 0
     while(keepgoing)
 
         optimize!(master)
@@ -156,15 +161,15 @@ function Q5(n,m,c,f,s,d,M;tol=1e-2,max_iter=1e3,display=false)
         #If master is executed and not terminated
         if t_status == MOI.INFEASIBLE_OR_UNBOUNDED
 
-            y0 = value.(y)
-            x0 = value.(x)
+            y_opt = value.(y)
+            theta = value.(x)
             Lb = - Inf
         #If master is executed and an optimal solution is found
         elseif p_status == MOI.FEASIBLE_POINT
 
             Lb = objective_value(master)
-            y0 = value.(y)
-            x0 = value.(x)
+            y_opt = value.(y)
+            theta = value.(x)
             
         ##If master is executed and is infeasible
         else p_status == MOI.INFEASIBLE_POINT
@@ -196,7 +201,7 @@ function Q5(n,m,c,f,s,d,M;tol=1e-2,max_iter=1e3,display=false)
         @variable(subProblem, v[1:n])
         @variable(subProblem, u[1:m])
         @variable(subProblem, w[1:(n*m)]>=0)
-        @objective(subProblem, Max, sum(v .*s) + sum(u .*d) - sum(M .* w .* y0))
+        @objective(subProblem, Max, sum(v .*s) + sum(u .*d) - sum(M .* w .* y_opt))
         @constraint(subProblem,c1, [ (v[div(k,m,RoundUp)] + u[mod(k-1,m)+1] - w[k]) for k in 1:n*m] .<= c)
 
         optimize!(subProblem)  
@@ -205,9 +210,14 @@ function Q5(n,m,c,f,s,d,M;tol=1e-2,max_iter=1e3,display=false)
         p_status_sub = primal_status(subProblem) 
 
 
-        # stopping conditions
-        if p_status_sub == MOI.FEASIBLE_POINT &&  x0 >= objective_value(subProblem) - 1e-10 
 
+        # stopping conditions
+        if p_status_sub == MOI.FEASIBLE_POINT &&  theta >= objective_value(subProblem) - 1e-10 
+
+            if(has_duals(subProblem))
+
+                x_opt =  -dual.(c1)
+            end
             if display
 
                 println("=======================================")
@@ -219,6 +229,11 @@ function Q5(n,m,c,f,s,d,M;tol=1e-2,max_iter=1e3,display=false)
             keepgoing = false 
  
         elseif (abs(Lb-Ub)<tol || k>max_iter)
+            
+            if(has_duals(subProblem))
+
+                x_opt =  -dual.(c1)
+            end
 
             if display
 
@@ -242,13 +257,13 @@ function Q5(n,m,c,f,s,d,M;tol=1e-2,max_iter=1e3,display=false)
             Feasability_Cut_Counter += 1
         
         #if bounded and add optimality cut (add a vertex)
-        elseif keepgoing && (p_status_sub == MOI.FEASIBLE_POINT && x0 < objective_value(subProblem)) 
+        elseif keepgoing && (p_status_sub == MOI.FEASIBLE_POINT && theta < objective_value(subProblem))
 
             vv = value.(v)
             uv = value.(u)
             wv = value.(w)
             @constraint(master, sum(vv .*s ) + sum(uv .*d ) - sum(M .* wv .* y)<= x )
-            Ub = sum(f.*y0)+ objective_value(subProblem)
+            Ub = sum(f.*y_opt)+ objective_value(subProblem)
             Optimality_Cut_Counter +=1 
         end
 
@@ -256,7 +271,7 @@ function Q5(n,m,c,f,s,d,M;tol=1e-2,max_iter=1e3,display=false)
         
     end
 
-    return objective_value(master)
+    return objective_value(master), x_opt, y_opt
 end
 
 
@@ -264,23 +279,30 @@ function compareTime(n,m)
 
     n,m,c,f,s,d,M = getVariables(n,m)
 
-    time1 = @elapsed obj1 = Q4(n,m,c,f,s,d,M,display=true);
+
+    time1 = @elapsed obj1, x_opt1, y_opt1 = Q4(n,m,c,f,s,d,M,display=false);
 
     n,m,c,f,s,d,M = getVariables(n,m)
 
-    time3 = @elapsed obj1 = Q4(n,m,c,f,s,d,M,display=true);
+    time3 = @elapsed obj1, x_opt1, y_opt1= Q4(n,m,c,f,s,d,M,display=true);
 
-    time4 = @elapsed obj2 = Q5(n,m,c,f,s,d,M,display=true);
+    time4 = @elapsed obj2, x_opt2, y_opt2 = Q5(n,m,c,f,s,d,M,tol=1e-2,display=true);
 
 
-    return time3, time4, abs(time3 -time4)
+    return time1, time3, time4, abs(obj1 -obj2), norm(x_opt2 .- x_opt1), norm(y_opt2 .- y_opt1)
 end
 
 
-time3, time4, diff = compareTime(10,15);
-println("Direct Solver = ",time3)
-println("Benders Decomposition = ",time4)
-println("diff = ",diff)
+time1, time3, time4, diff_f, diff_x,diff_y = compareTime(5,10);
+println("time1 = ",time1)
+println("time3 = ",time3)
+println("time4 = ",time4)
+println("diff_f = ",diff_f)
+println("diff_x = ",diff_x)
+println("diff_y = ",diff_y)
+
+
+
 
 
 
