@@ -152,9 +152,11 @@ function Q5(n,m,c,f,s,d,M;tol=1e-2,max_iter=1e3,display=false)
     keepgoing = true
     x_opt = 0
     y_opt = 0
+    timeMaster = 0
+    timeSubProblem = 0
     while(keepgoing)
 
-        optimize!(master)
+        timeMaster += @elapsed optimize!(master)
         t_status = termination_status(master)
         p_status = primal_status(master) 
 
@@ -190,6 +192,9 @@ function Q5(n,m,c,f,s,d,M;tol=1e-2,max_iter=1e3,display=false)
 
                 println("===============iter k = ",k,"========================")
                 println("Lb = ",Lb,"    Ub = ",Ub)
+                println("time for master = ",timeMaster/20,"    time for subProblem =",timeSubProblem/20)
+                timeMaster = 0
+                timeSubProblem = 0
             end
         end
 
@@ -204,7 +209,7 @@ function Q5(n,m,c,f,s,d,M;tol=1e-2,max_iter=1e3,display=false)
         @objective(subProblem, Max, sum(v .*s) + sum(u .*d) - sum(M .* w .* y_opt))
         @constraint(subProblem,c1, [ (v[div(k,m,RoundUp)] + u[mod(k-1,m)+1] - w[k]) for k in 1:n*m] .<= c)
 
-        optimize!(subProblem)  
+        timeSubProblem += @elapsed optimize!(subProblem)  
 
         t_status_sub = termination_status(subProblem)
         p_status_sub = primal_status(subProblem) 
@@ -293,7 +298,7 @@ function compareTime(n,m)
 end
 
 
-time1, time3, time4, diff_f, diff_x,diff_y = compareTime(5,10);
+time1, time3, time4, diff_f, diff_x,diff_y = compareTime(10,5);
 println("time1 = ",time1)
 println("time3 = ",time3)
 println("time4 = ",time4)
