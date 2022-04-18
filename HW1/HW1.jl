@@ -1,8 +1,8 @@
 using GLPK,JuMP, Gurobi
-using Random
-using Distributions
+using Random, Distributions
 using MathOptInterface
 using LinearAlgebra
+using Plots
 const MOI = MathOptInterface
 
 function getVariables(n,m)
@@ -152,11 +152,11 @@ function Q5(n,m,c,f,s,d,M;tol=1e-2,max_iter=1e3,display=false)
     keepgoing = true
     x_opt = 0
     y_opt = 0
-    timeMaster = 0
-    timeSubProblem = 0
+    timeMaster = []
+    timeSubProblem = []
     while(keepgoing)
 
-        timeMaster += @elapsed optimize!(master)
+        push!(timeMaster, @elapsed optimize!(master))
         t_status = termination_status(master)
         p_status = primal_status(master) 
 
@@ -181,23 +181,6 @@ function Q5(n,m,c,f,s,d,M;tol=1e-2,max_iter=1e3,display=false)
             break
         end
 
-        if display
-            if k == 1
-
-                println("======================== Benders Decomposition ========================")
-                println("===============iter k = ",k,"========================")
-                println("Lb = ",Lb,"    Ub = ",Ub)
-            end
-            if mod(k,20)==0
-
-                println("===============iter k = ",k,"========================")
-                println("Lb = ",Lb,"    Ub = ",Ub)
-                println("time for master = ",timeMaster/20,"    time for subProblem =",timeSubProblem/20)
-                timeMaster = 0
-                timeSubProblem = 0
-            end
-        end
-
         
 
         #Subproblem
@@ -209,7 +192,7 @@ function Q5(n,m,c,f,s,d,M;tol=1e-2,max_iter=1e3,display=false)
         @objective(subProblem, Max, sum(v .*s) + sum(u .*d) - sum(M .* w .* y_opt))
         @constraint(subProblem,c1, [ (v[div(k,m,RoundUp)] + u[mod(k-1,m)+1] - w[k]) for k in 1:n*m] .<= c)
 
-        timeSubProblem += @elapsed optimize!(subProblem)  
+        push!(timeSubProblem, @elapsed optimize!(subProblem))
 
         t_status_sub = termination_status(subProblem)
         p_status_sub = primal_status(subProblem) 
@@ -272,11 +255,28 @@ function Q5(n,m,c,f,s,d,M;tol=1e-2,max_iter=1e3,display=false)
             Optimality_Cut_Counter +=1 
         end
 
+        if display
+            if k == 1
+
+                println("======================== Benders Decomposition ========================")
+                println("===============iter k = ",k,"========================")
+                println("Lb = ",Lb,"    Ub = ",Ub)
+            end
+            i=20
+            if mod(k,i)==0
+
+                println("===============iter k = ",k,"========================")
+                println("Lb = ",Lb,"    Ub = ",Ub)
+
+                println("time for master = ",sum(timeMaster[end-i+1:end])/i,"    time for subProblem =",sum(timeSubProblem[end-i+1:end])/i)
+            end
+        end
+
         k += 1
         
     end
 
-    return objective_value(master), x_opt, y_opt
+    return objective_value(master), x_opt, y_opt, timeMaster,timeSubProblem
 end
 
 
@@ -291,14 +291,16 @@ function compareTime(n,m)
 
     time3 = @elapsed obj1, x_opt1, y_opt1= Q4(n,m,c,f,s,d,M,display=true);
 
-    time4 = @elapsed obj2, x_opt2, y_opt2 = Q5(n,m,c,f,s,d,M,tol=1e-2,display=true);
-
-
+    time4 = @elapsed obj2, x_opt2, y_opt2,timeMaster,timeSubProblem = Q5(n,m,c,f,s,d,M,tol=1e-2,display=true);
+    x = range(1,length(timeMaster))
+    plot(x,timeMaster)
+    plot!(x,timeSubProblem)
+    display(plot)
     return time1, time3, time4, abs(obj1 -obj2), norm(x_opt2 .- x_opt1), norm(y_opt2 .- y_opt1)
 end
 
 
-time1, time3, time4, diff_f, diff_x,diff_y = compareTime(10,5);
+time1, time3, time4, diff_f, diff_x,diff_y = compareTime(5,5);
 println("time1 = ",time1)
 println("time3 = ",time3)
 println("time4 = ",time4)
