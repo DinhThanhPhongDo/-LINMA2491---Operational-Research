@@ -72,7 +72,7 @@ function Lshaped(c, A, b, q, W, h, T, p;tol=1e-2,max_iter=1e3,display=false)
             Lb = objective_value(master)
             x_opt = value.(x)
             theta_opt = value.(theta)
-            println("============== MASTER =========================")
+            println("============== MASTER ==============")
             println("x_opt = ", x_opt)
             println("theta_opt = ", theta_opt)
 
