@@ -227,8 +227,8 @@ function step_3(W_ge, T_ge, h_ge, W_le, T_le, h_le, W_eq, T_eq, h_eq, q, p, K, x
 
         optimize!(m)
 
-        #@printf("    [Step 3, k = %d] Dual variables of 'ge' constraints: %s\n", k, dual.(cons_ge))
-        #@printf("    [Step 3, k = %d] Dual variables of 'le' constraints: %s\n", k, dual.(cons_le))
+        @printf("    [Step 3, k = %d] Dual variables of 'ge' constraints: %s\n", k, dual.(cons_ge))
+        @printf("    [Step 3, k = %d] Dual variables of 'le' constraints: %s\n", k, dual.(cons_le))
         #@printf("    [Step 3, k = %d] Dual variables of 'eq' constraints: %s\n", k, dual.(cons_eq))
         #
         #@printf("    [Step 3, k = %d] h_k vector for 'ge' constraints: %s\n", k, h_ge[k, :])
@@ -239,7 +239,8 @@ function step_3(W_ge, T_ge, h_ge, W_le, T_le, h_le, W_eq, T_eq, h_eq, q, p, K, x
         #@printf("    [Step 3, k = %d] T_k matrix for 'le' constraints: %s\n", k, T_le[k, :, :])
         #@printf("    [Step 3, k = %d] T_k matrix for 'eq' constraints: %s\n", k, T_eq[k, :, :])
         #
-        #@printf("    [Step 3, k = %d] Optimal objective value for the sub-problem: %f\n", k, objective_value(m))
+        @printf("    [Step 3, k = %d] Optimal objective value for the sub-problem: %f\n", k, objective_value(m))
+        @printf("    [Step 3, k = %d] x for this subproblem: %s\n", k, xv)
 
         #@printf("\nT_ge[%i, :, :] = %s\n",k,T_ge[k, :, :])
         #@printf("\nT_ge[%i, :, :] = %s\n",k,dual.(cons_ge)')

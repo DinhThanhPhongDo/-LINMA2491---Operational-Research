@@ -34,6 +34,7 @@ function Lshaped(c, A, b, q, W, h, T, p;tol=1e-2,max_iter=1e3,display=false)
     set_optimizer_attribute(master,"presolve",2)
     @variable(master, x[1:dim_x]>= 0)
     @variable(master,theta>=0)
+    @constraint(master,A .* x == b)
     @objective(master, Min, theta + sum(c .*x))
 
 
@@ -66,7 +67,7 @@ function Lshaped(c, A, b, q, W, h, T, p;tol=1e-2,max_iter=1e3,display=false)
             println("=======================================")
             println("--> stop: problem is infeasible or unbounded")
             break
-        #If master is executed and an optimal solution is found
+        #If master is executed and an optimal solution is found 
         elseif p_status == MOI.FEASIBLE_POINT
 
             Lb = objective_value(master)
@@ -110,7 +111,7 @@ function Lshaped(c, A, b, q, W, h, T, p;tol=1e-2,max_iter=1e3,display=false)
 
             println("prod = ", prod)
             @objective(subProblem, Max,sum(pi.*(prod)))
-            @constraint(subProblem,c1, transpose(pi)*W .<= transpose(q))
+            @constraint(subProblem,c1, transpose(pi)*W .<= transpose(q)) #p_k ?
 
             push!(timeSubProblem, @elapsed optimize!(subProblem))
 
@@ -158,6 +159,7 @@ function Lshaped(c, A, b, q, W, h, T, p;tol=1e-2,max_iter=1e3,display=false)
                 println("sub_objval_temp = ", sub_objval)
 
             end
+
         scen = scen + 1
 
         end

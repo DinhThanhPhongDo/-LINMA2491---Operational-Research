@@ -10,7 +10,7 @@ global TEST_NUMBER = 4
 
 ######################################################################
 
-include("lshape.jl")
+include("Phong_lshape.jl")
 
 
 # Problem parameters
