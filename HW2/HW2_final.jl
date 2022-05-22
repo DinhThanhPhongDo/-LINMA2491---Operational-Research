@@ -29,7 +29,10 @@ function Lshaped(c, A, b, q, W, h, T, p;tol=1e-2,max_iter=1e3,display=false)
 
     gurobi_env = Gurobi.Env()
 
-    #Master Problem
+    #------------------------------------------------------------------------------------
+    # Master Problem
+    #------------------------------------------------------------------------------------
+
     master = Model(optimizer_with_attributes( () -> Gurobi.Optimizer(gurobi_env),"OutputFlag"=>0))
     set_optimizer_attribute(master,"presolve",2)
     @variable(master, x[1:dim_x]>= 0)
@@ -95,9 +98,9 @@ function Lshaped(c, A, b, q, W, h, T, p;tol=1e-2,max_iter=1e3,display=false)
         
 
 
-
+        #-----------------------------------------------------------------------
         #Subproblem
-        #-------------------------------------------------------------------------------
+        #-----------------------------------------------------------------------
 
         u_opt = zeros(length(q))
         subfeasible = true
@@ -163,10 +166,13 @@ function Lshaped(c, A, b, q, W, h, T, p;tol=1e-2,max_iter=1e3,display=false)
                 pi_vertex[scen,:] = pi_opt
                 if(has_duals(subProblem))
                     u_scen_opt[1] = transpose(-dual.(c1))  
- 
                     u_scen_opt[2] = transpose(-dual.(c2))  
                     u_scen_opt[3] = transpose(-dual.(c3))  
-                    u_scen_opt[4] = transpose(-dual.(c4))  
+                    u_scen_opt[4] = transpose(-dual.(c4))
+                    u_scen_opt[5] = transpose(-dual.(c5)) 
+                    u_scen_opt[6] = transpose(-dual.(c6))   
+
+                    println("u optimal for scenario ", scen, " :", u_scen_opt)
 
                     u_opt = u_opt + p[scen].*u_scen_opt
 
@@ -242,7 +248,6 @@ function Lshaped(c, A, b, q, W, h, T, p;tol=1e-2,max_iter=1e3,display=false)
 
 
             end
-            println("sum1 = ", sum1, " ; sum2 = ", sum2)
 
             @constraint(master, sum1 - sum2[1]*x[1] - sum2[2]*x[2]-sum2[3]*x[3] <= theta)
 
@@ -255,6 +260,8 @@ function Lshaped(c, A, b, q, W, h, T, p;tol=1e-2,max_iter=1e3,display=false)
             for sc in 1:nb_scen
                 println("pi_vertex [", sc, "] = ", pi_vertex[sc,:])
             end
+
+            println(" factors in optim cut : (pi^T)*h = ", sum1, " ; (pi^T)*T = ", sum2)
 
 
         end
