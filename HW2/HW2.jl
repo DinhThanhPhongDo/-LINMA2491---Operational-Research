@@ -111,8 +111,7 @@ function Lshaped(c, A, b, q, W, h, T, p;tol=1e-2,max_iter=1e3,display=false)
 
             println("prod = ", prod)
             @objective(subProblem, Max,sum(pi.*(prod)))
-            @constraint(subProblem,c1, transpose(pi)*W .<= transpose(q)) #p_k ?
-
+            @constraint(subProblem,c1, transpose(pi)*W .<= transpose(q)) 
             push!(timeSubProblem, @elapsed optimize!(subProblem))
 
             pi_opt = value.(pi)

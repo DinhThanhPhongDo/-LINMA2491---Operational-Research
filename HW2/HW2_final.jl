@@ -68,7 +68,7 @@ function Lshaped(c, A, b, q, W, h, T, p;tol=1e-2,max_iter=1e3,display=false)
         #If master is executed and not terminated
         if t_status == MOI.INFEASIBLE_OR_UNBOUNDED
 
-            println("=======================================")
+            println("[Master , iter = ", k,"]===================")
             println("--> stop: problem is infeasible or unbounded")
             break
         #If master is executed and an optimal solution is found
@@ -77,17 +77,17 @@ function Lshaped(c, A, b, q, W, h, T, p;tol=1e-2,max_iter=1e3,display=false)
             Lb = objective_value(master)
             x_opt = value.(x)
             theta_opt = value.(theta)
-            println("============ Master , iter = ", k,"===================")
-            println("x_opt = ", x_opt)
-            println("theta_opt = ", theta_opt)
-            println("Lb = ", Lb)
+            println("[Master , iter = ", k,"]===================")
+            println("   x_opt = ", x_opt)
+            println("   theta_opt = ", theta_opt)
+            println("   Lb = ", Lb)
 
 
 
         ##If master is executed and is infeasible
         else p_status == MOI.INFEASIBLE_POINT
 
-            println("=======================================")
+            println("[Master , iter = ", k,"]===================")
             println("--> stop: problem is infeasible")
             break
         end
@@ -107,11 +107,11 @@ function Lshaped(c, A, b, q, W, h, T, p;tol=1e-2,max_iter=1e3,display=false)
 
         pi_vertex= zeros(nb_scen, dim_pi)
 
-        println("============ SubProblem , iter = ", k,"===================")
+        println("   [SubProblem , iter = ", k,"]===================")
 
         while ((scen <= nb_scen) && (subfeasible))
 
-            println("---------- Scenario ", scen," -------------")
+            println("           Scenario ", scen," -------------")
             subProblem = Model(optimizer_with_attributes( () -> Gurobi.Optimizer(gurobi_env),"OutputFlag"=>0))
             set_optimizer_attribute(subProblem,"presolve",0);
             
@@ -132,7 +132,7 @@ function Lshaped(c, A, b, q, W, h, T, p;tol=1e-2,max_iter=1e3,display=false)
 
             pi_opt = value.(pi)
 
-            println("pi_opt = ", pi_opt)
+            println("           pi_opt = ", pi_opt)
 
             t_status_sub = termination_status(subProblem)
             p_status_sub = primal_status(subProblem) 
@@ -150,11 +150,11 @@ function Lshaped(c, A, b, q, W, h, T, p;tol=1e-2,max_iter=1e3,display=false)
                 Feasability_Cut_Counter += 1
                 subfeasible = false
 
-                println("-------------- FEASIBILITY CUT-------------------")
-                println("number = ", Feasability_Cut_Counter)
+                println("           FEASIBILITY CUT-------------------")
+                println("               number = ", Feasability_Cut_Counter)
 
-                println("scenario :", scen)
-                println("sigma = ", sigma)
+                println("               scenario :", scen)
+                println("               sigma = ", sigma)
                 
             
             #if feasible remember pi
@@ -181,8 +181,8 @@ function Lshaped(c, A, b, q, W, h, T, p;tol=1e-2,max_iter=1e3,display=false)
         end
         #----------------------------------------------------------------------------------
         
-        println("theta_opt = ", theta_opt)
-        println("sub_obj = ", sub_objval)
+        println("       theta_opt = ", theta_opt)
+        println("       sub_obj = ", sub_objval)
 
 
 
@@ -201,6 +201,7 @@ function Lshaped(c, A, b, q, W, h, T, p;tol=1e-2,max_iter=1e3,display=false)
                 println("Number of feasability cuts=",Feasability_Cut_Counter)
                 println("Number of optimality cuts =",Optimality_Cut_Counter)
                 println("Lb=",Lb," f*= ",objective_value(master)," Ub= ",Ub)
+                println("theta_opt=",theta_opt)
             end
             keepgoing = false 
             subfeasible = false
@@ -242,18 +243,19 @@ function Lshaped(c, A, b, q, W, h, T, p;tol=1e-2,max_iter=1e3,display=false)
 
 
             end
-            println("sum1 = ", sum1, " ; sum2 = ", sum2)
+            println("       sum1 = ", sum1, " ; sum2 = ", sum2)
 
             @constraint(master, sum1 - sum2[1]*x[1] - sum2[2]*x[2]-sum2[3]*x[3] <= theta)
 
             Ub = sum(c.*x_opt)+ sub_objval
             Optimality_Cut_Counter +=1 
 
-            println("-------------- OPTIMALITY CUT nb : ",  Optimality_Cut_Counter, " -------------------")
-            println("Ub = ", Ub)
+            println("           OPTIMALITY CUT nb : ",  Optimality_Cut_Counter, " -------------------")
+            println("           cut: theta >= ", sum1 - sum2[1]*x[1] - sum2[2]*x[2]-sum2[3]*x[3])
+            println("           Ub = ", Ub)
 
             for sc in 1:nb_scen
-                println("pi_vertex [", sc, "] = ", pi_vertex[sc,:])
+                println("           pi_vertex [", sc, "] = ", pi_vertex[sc,:])
             end
 
 
